@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Liste des interventions</title>
+</head>
+<body>
+<h1>Liste des interventions</h1>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Description</th>
+        <th>Statut</th>
+        <th>Équipement</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="intervention : ${interventions}">
+        <td th:text="${intervention.id}"></td>
+        <td th:text="${intervention.description}"></td>
+        <td th:text="${intervention.status}"></td>
+        <td th:text="${intervention.equipment != null ? intervention.equipment.name : 'Aucun équipement'}"></td>
+    </tr>
+    </tbody>
+</table>
+<a href="/interventions/new">Ajouter une intervention</a>
+</body>
+</html>
