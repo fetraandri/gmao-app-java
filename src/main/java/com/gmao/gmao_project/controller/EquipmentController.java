@@ -4,16 +4,16 @@ import com.gmao.gmao_project.model.Equipment;
 import com.gmao.gmao_project.model.Intervention;
 import com.gmao.gmao_project.service.EquipmentService;
 import com.gmao.gmao_project.service.InterventionService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.servlet.ModelAndView;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller
+@RestController // Remplace @Controller pour retourner du JSON
+@RequestMapping("/api") // Préfixe tous les endpoints avec /api
 public class EquipmentController {
 
     @Autowired
@@ -22,91 +22,72 @@ public class EquipmentController {
     @Autowired
     private InterventionService interventionService;
 
-    // Afficher la liste des équipements
+    // Afficher la liste des équipements (GET /api/equipments)
     @GetMapping("/equipments")
-    public ModelAndView getAllEquipments() {
-        ModelAndView mav = new ModelAndView("equipment-list");
-        mav.addObject("equipments", equipmentService.getAllEquipments());
-        return mav;
+    public ResponseEntity<List<Equipment>> getAllEquipments() {
+        List<Equipment> equipments = equipmentService.getAllEquipments();
+        System.out.println("Equipments retrieved: " + (equipments != null ? equipments.size() : "null"));
+        return ResponseEntity.ok(equipments);
     }
 
-    // Afficher le formulaire pour ajouter un équipement
-    @GetMapping("/equipments/new")
-    public ModelAndView showEquipmentForm() {
-        ModelAndView mav = new ModelAndView("equipment-form");
-        mav.addObject("equipment", new Equipment());
-        return mav;
-    }
-
-    // Sauvegarder un nouvel équipement
-    @PostMapping("/equipments")
-    public String saveEquipment(Equipment equipment) {
-        equipmentService.saveEquipment(equipment);
-        return "redirect:/equipments";
-    }
-
-    // Afficher le formulaire pour modifier un équipement
-    @GetMapping("/equipments/edit/{id}")
-    public ModelAndView showEditEquipmentForm(@PathVariable Long id) {
-        ModelAndView mav = new ModelAndView("equipment-form");
+    // Afficher un équipement spécifique pour édition (GET /api/equipments/{id})
+    @GetMapping("/equipments/{id}")
+    public ResponseEntity<Equipment> getEquipmentById(@PathVariable Long id) {
         Equipment equipment = equipmentService.getEquipmentById(id);
-        mav.addObject("equipment", equipment);
-        return mav;
+        return ResponseEntity.ok(equipment);
     }
 
-    // Supprimer un équipement
-    @GetMapping("/equipments/delete/{id}")
-    public String deleteEquipment(@PathVariable Long id) {
-        equipmentService.deleteEquipment(id);
-        return "redirect:/equipments";
+    // Ajouter ou modifier un équipement (POST /api/equipments)
+    @PostMapping("/equipments")
+    public ResponseEntity<Equipment> saveEquipment(@RequestBody Equipment equipment) {
+        equipmentService.saveEquipment(equipment);
+        return ResponseEntity.ok(equipment);
     }
 
-    // Afficher la liste des interventions
+    // Modifier un équipement (PUT /api/equipments/{id})
+    @PutMapping("/equipments/{id}")
+    public ResponseEntity<Equipment> updateEquipment(@PathVariable Long id, @RequestBody Equipment equipment) {
+        equipment.setId(id); // Assure que l'ID correspond
+        equipmentService.saveEquipment(equipment);
+        return ResponseEntity.ok(equipment);
+    }
+
+    // Supprimer un équipement (DELETE /api/equipments/{id})
+    @DeleteMapping("/equipments/{id}")
+    public ResponseEntity<Void> deleteEquipment(@PathVariable Long id) {
+        try {
+            equipmentService.deleteEquipment(id);
+            return ResponseEntity.noContent().build(); // 204
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build(); // 404
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build(); // 500
+        }
+    }
+    // Afficher la liste des interventions (GET /api/interventions)
     @GetMapping("/interventions")
-    public ModelAndView getAllInterventions() {
-        ModelAndView mav = new ModelAndView("intervention-list");
+    public ResponseEntity<List<Intervention>> getAllInterventions() {
         List<Intervention> interventions = interventionService.getAllInterventions();
         System.out.println("Interventions retrieved: " + interventions.size());
         for (Intervention intervention : interventions) {
             System.out.println("Intervention ID: " + intervention.getId() + ", Equipment: " +
                     (intervention.getEquipment() != null ? intervention.getEquipment().getName() : "null"));
         }
-        mav.addObject("interventions", interventions);
-        return mav;
+        return ResponseEntity.ok(interventions);
     }
 
-    // Afficher le formulaire pour une nouvelle intervention
-    @GetMapping("/interventions/new")
-    public ModelAndView showInterventionForm() {
-        ModelAndView mav = new ModelAndView("intervention-form-static"); // Garde le nom actuel
-        mav.addObject("intervention", new Intervention());
-
-        // Générer les options du <select> manuellement
+    // Fournir les équipements pour le formulaire d’intervention (GET /api/equipments/for-intervention)
+    @GetMapping("/equipments/for-intervention")
+    public ResponseEntity<List<Equipment>> getEquipmentsForIntervention() {
         List<Equipment> equipments = equipmentService.getAllEquipments();
-        System.out.println("Equipments retrieved: " + (equipments != null ? equipments.size() : "null"));
-        StringBuilder equipmentOptions = new StringBuilder();
-        equipmentOptions.append("<option value=\"\">-- Sélectionnez un équipement --</option>");
-        if (equipments != null && !equipments.isEmpty()) {
-            for (Equipment eq : equipments) {
-                equipmentOptions.append("<option value=\"")
-                        .append(eq.getId())
-                        .append("\">")
-                        .append(eq.getName())
-                        .append("</option>");
-            }
-        } else {
-            equipmentOptions.append("<option value=\"\" disabled>Aucun équipement disponible</option>");
-        }
-        String optionsHtml = equipmentOptions.toString();
-        System.out.println("Generated equipmentOptions: " + optionsHtml); // Log pour vérification
-        mav.addObject("equipmentOptions", optionsHtml); // Passer la chaîne HTML au modèle
-        return mav;
+        System.out.println("Equipments retrieved for intervention: " + (equipments != null ? equipments.size() : "null"));
+        return ResponseEntity.ok(equipments);
     }
 
-    // Sauvegarder une intervention
+    // Sauvegarder une intervention (POST /api/interventions)
     @PostMapping("/interventions")
-    public String saveIntervention(Intervention intervention) {
+    public ResponseEntity<Intervention> saveIntervention(@RequestBody Intervention intervention) {
         interventionService.saveIntervention(intervention);
-        return "redirect:/interventions";
+        return ResponseEntity.ok(intervention);
     }
 }
